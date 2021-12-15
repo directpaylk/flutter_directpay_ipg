@@ -3,10 +3,6 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 
 import 'package:flutter/material.dart';
-import 'dart:async';
-
-import 'package:flutter/services.dart';
-import 'package:flutter_directpay_ipg/flutter_directpay_ipg.dart';
 import 'package:flutter_directpay_ipg/ipg_stage.dart';
 import 'package:flutter_directpay_ipg/ipg_view.dart';
 
@@ -40,25 +36,6 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    initPlatformState();
-  }
-
-  // Platform messages are asynchronous, so we initialize in an async method.
-  Future<void> initPlatformState() async {
-    String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    // We also handle the message potentially returning null.
-    try {
-      platformVersion = await FlutterDirectpayIpg.platformVersion ??
-          'Unknown platform version';
-    } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
-    }
-
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
-    if (!mounted) return;
   }
 
   createPayload() {
@@ -211,14 +188,15 @@ class CheckoutPage extends StatelessWidget {
         title: const Text('Checkout Page'),
       ),
       body: Center(
-          child: IPGView(
-        stage: IPGStage.DEV,
-        signature: this.signature,
-        dataString: this.dataString,
-        callback: (data) {
-          Navigator.of(context).pop(data);
-        },
-      )),
+        child: IPGView(
+          stage: IPGStage.DEV,
+          signature: this.signature,
+          payload: this.dataString,
+          callback: (data) {
+            Navigator.of(context).pop(data);
+          },
+        ),
+      ),
     );
   }
 }

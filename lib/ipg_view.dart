@@ -10,13 +10,13 @@ import 'package:http/http.dart' as http;
 class IPGView extends StatefulWidget {
   final String stage;
   final String signature;
-  final String dataString;
+  final String payload;
   final Function(dynamic)? callback;
 
   IPGView(
       {required this.stage,
       required this.signature,
-      required this.dataString,
+      required this.payload,
       this.callback});
 
   @override
@@ -51,7 +51,7 @@ class _IPGView extends State<IPGView> {
         'x-plugin-version': '0.0.1',
         'Authorization': 'hmac ' + widget.signature
       },
-      body: widget.dataString,
+      body: widget.payload,
     );
 
     if (response.statusCode == 200) {
