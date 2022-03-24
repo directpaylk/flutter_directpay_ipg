@@ -3,28 +3,38 @@ import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_directpay_ipg/ipg_stage.dart';
-import 'package:pusher_channels/pusher_channels.dart';
+import 'package:pusher_client/pusher_client.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:http/http.dart' as http;
 
+
+/// A widget that draws IPG view within itself.
+///
+/// This widget will initiate and display IPG session according to
+/// [stage] provided.
+/// [signature] is used to authorize the initiated session.
+/// [payload] must contain the session data as a [String] which is a
+/// JSON string that is [Base64Codec] encoded.
+/// If the [callback] is null, event data will not be captured.
 class IPGView extends StatefulWidget {
   final String stage;
   final String signature;
   final String payload;
   final Function(dynamic)? callback;
 
-  IPGView(
-      {required this.stage,
-      required this.signature,
-      required this.payload,
-      this.callback});
+  IPGView({
+    required this.stage,
+    required this.signature,
+    required this.payload,
+    this.callback,
+  });
 
   @override
   State<StatefulWidget> createState() => _IPGView();
 }
 
 class _IPGView extends State<IPGView> {
-  Pusher? pusher;
+  PusherClient? pusher;
   bool isLoading = true;
   String? url;
   String? token;
@@ -43,7 +53,7 @@ class _IPGView extends State<IPGView> {
     });
 
     final response = await http.post(
-      sessionUrl(widget.stage),
+      sessionUrl(),
       headers: <String, String>{
         'Accept': 'application/json',
         'Content-Type': 'application/json; charset=UTF-8',
@@ -64,9 +74,9 @@ class _IPGView extends State<IPGView> {
         });
 
         final ak = jsonObject["data"]["ak"];
-        final ch = jsonObject["data"]["ch"];
+        this.ch = jsonObject["data"]["ch"];
 
-        this.initPusher(ak, ch);
+        this.initPusher(ak);
       } else {
         this.callback(data: jsonObject);
       }
@@ -75,14 +85,34 @@ class _IPGView extends State<IPGView> {
     }
   }
 
-  initPusher(ak, ch) async {
-    this.ch = ch;
-    this.pusher = Pusher(key: ak, cluster: 'ap2');
-    await this.pusher!.connect();
-    final channel = pusher!.subscribe(this.ch);
-    channel.bind('SDK_' + this.token!, (event) {
-      if (event['response'] != null) this.callback(data: event['response']);
+  initPusher(ak) async {
+    final _options = PusherOptions(
+      encrypted: false,
+      cluster: 'ap2',
+    );
+    this.pusher = PusherClient(
+      ak,
+      _options,
+    );
+
+    pusher!.onConnectionStateChange((state) {
+      _log(
+          "previousState: ${state?.previousState}, currentState: ${state?.currentState}");
     });
+
+    pusher!.onConnectionError((error) {
+      _log("error: ${error?.message}");
+    });
+
+    final _channel = pusher!.subscribe(this.ch);
+    _channel.bind(
+      'SDK_' + this.token!,
+      (PusherEvent? event) {
+        Map jsonMap = json.decode(event?.data ?? '{}');
+        if (jsonMap['response'] != null)
+          this.callback(data: jsonMap['response']);
+      },
+    );
   }
 
   callback({data}) {
@@ -101,18 +131,23 @@ class _IPGView extends State<IPGView> {
     }
   }
 
-  sessionUrl(stage) {
-    return Uri.parse(stage == IPGStage.PROD
+  sessionUrl() {
+    return Uri.parse(widget.stage == IPGStage.PROD
         ? 'https://gateway.directpay.lk/api/v3/create-session'
         : 'https://test-gateway.directpay.lk/api/v3/create-session');
   }
 
+  _log(data) {
+    if (widget.stage == IPGStage.DEV) {
+      debugPrint(data.toString());
+    }
+  }
+
   @override
   void dispose() {
-    if (this.pusher != null) {
-      this.pusher!.unsubscribe(this.ch);
-      this.pusher!.disconnect();
-    }
+    // Unsubscribe from channel and disconnect
+    pusher?.unsubscribe(this.ch);
+    pusher?.disconnect();
 
     super.dispose();
   }

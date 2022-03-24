@@ -2,27 +2,52 @@ PODS:
   - Flutter (1.0.0)
   - flutter_directpay_ipg (0.0.1):
     - Flutter
-  - webview_flutter (0.0.1):
+  - pusher_client (2.0.0):
+    - Flutter
+    - PusherSwiftWithEncryption (~> 8.0.0)
+  - PusherSwiftWithEncryption (8.0.0):
+    - ReachabilitySwift (~> 5.0)
+    - Sodium (= 0.8.0)
+    - Starscream (~> 3.1)
+  - ReachabilitySwift (5.0.0)
+  - Sodium (0.8.0)
+  - Starscream (3.1.1)
+  - webview_flutter_wkwebview (0.0.1):
     - Flutter
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
   - flutter_directpay_ipg (from `.symlinks/plugins/flutter_directpay_ipg/ios`)
-  - webview_flutter (from `.symlinks/plugins/webview_flutter/ios`)
+  - pusher_client (from `.symlinks/plugins/pusher_client/ios`)
+  - webview_flutter_wkwebview (from `.symlinks/plugins/webview_flutter_wkwebview/ios`)
+
+SPEC REPOS:
+  trunk:
+    - PusherSwiftWithEncryption
+    - ReachabilitySwift
+    - Sodium
+    - Starscream
 
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
   flutter_directpay_ipg:
     :path: ".symlinks/plugins/flutter_directpay_ipg/ios"
-  webview_flutter:
-    :path: ".symlinks/plugins/webview_flutter/ios"
+  pusher_client:
+    :path: ".symlinks/plugins/pusher_client/ios"
+  webview_flutter_wkwebview:
+    :path: ".symlinks/plugins/webview_flutter_wkwebview/ios"
 
 SPEC CHECKSUMS:
-  Flutter: 434fef37c0980e73bb6479ef766c45957d4b510c
+  Flutter: 50d75fe2f02b26cc09d224853bb45737f8b3214a
   flutter_directpay_ipg: 032afb3b48a655add3ecaa5dba4605565e27ab81
-  webview_flutter: 3603125dfd3bcbc9d8d418c3f80aeecf331c068b
+  pusher_client: ffcefc0aeeb910ef85e82c9bb333146adad0d8ce
+  PusherSwiftWithEncryption: e8626abf1067a7e1b06afde720934fe1872498e3
+  ReachabilitySwift: 985039c6f7b23a1da463388634119492ff86c825
+  Sodium: 63c0ca312a932e6da481689537d4b35568841bdc
+  Starscream: 4bb2f9942274833f7b4d296a55504dcfc7edb7b0
+  webview_flutter_wkwebview: 005fbd90c888a42c5690919a1527ecc6649e1162
 
 PODFILE CHECKSUM: a75497545d4391e2d394c3668e20cfb1c2bbd4aa
 
-COCOAPODS: 1.10.1
+COCOAPODS: 1.11.2
