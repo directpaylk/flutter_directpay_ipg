@@ -1,12 +1,10 @@
 import 'dart:convert';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_directpay_ipg/ipg_stage.dart';
-import 'package:pusher_client/pusher_client.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 import 'package:http/http.dart' as http;
-
+import 'package:pusher_channels/pusher_channels.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 /// A widget that draws IPG view within itself.
 ///
@@ -34,7 +32,7 @@ class IPGView extends StatefulWidget {
 }
 
 class _IPGView extends State<IPGView> {
-  PusherClient? pusher;
+  Pusher? pusher;
   bool isLoading = true;
   String? url;
   String? token;
@@ -63,7 +61,6 @@ class _IPGView extends State<IPGView> {
       },
       body: widget.payload,
     );
-
     if (response.statusCode == 200) {
       final jsonObject = jsonDecode(response.body);
       final status = jsonObject["status"];
@@ -86,33 +83,14 @@ class _IPGView extends State<IPGView> {
   }
 
   initPusher(ak) async {
-    final _options = PusherOptions(
-      encrypted: false,
-      cluster: 'ap2',
-    );
-    this.pusher = PusherClient(
-      ak,
-      _options,
-    );
-
-    pusher!.onConnectionStateChange((state) {
-      _log(
-          "previousState: ${state?.previousState}, currentState: ${state?.currentState}");
+    this.pusher = Pusher(key: ak, cluster: 'ap2');
+    await this.pusher!.connect();
+    final channel = pusher!.subscribe(this.ch);
+    channel.bind('SDK_' + this.token!, (event) {
+      if (event['response'] != null) {
+        this.callback(data: event['response']);
+      }
     });
-
-    pusher!.onConnectionError((error) {
-      _log("error: ${error?.message}");
-    });
-
-    final _channel = pusher!.subscribe(this.ch);
-    _channel.bind(
-      'SDK_' + this.token!,
-      (PusherEvent? event) {
-        Map jsonMap = json.decode(event?.data ?? '{}');
-        if (jsonMap['response'] != null)
-          this.callback(data: jsonMap['response']);
-      },
-    );
   }
 
   callback({data}) {
@@ -137,17 +115,10 @@ class _IPGView extends State<IPGView> {
         : 'https://test-gateway.directpay.lk/api/v3/create-session');
   }
 
-  _log(data) {
-    if (widget.stage == IPGStage.DEV) {
-      debugPrint(data.toString());
-    }
-  }
-
   @override
   void dispose() {
-    // Unsubscribe from channel and disconnect
-    pusher?.unsubscribe(this.ch);
-    pusher?.disconnect();
+      this.pusher?.unsubscribe(this.ch);
+      this.pusher?.disconnect();
 
     super.dispose();
   }
