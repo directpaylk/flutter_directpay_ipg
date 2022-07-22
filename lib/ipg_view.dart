@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_directpay_ipg/ipg_stage.dart';
 import 'package:http/http.dart' as http;
@@ -14,17 +17,20 @@ import 'package:webview_flutter/webview_flutter.dart';
 /// [payload] must contain the session data as a [String] which is a
 /// JSON string that is [Base64Codec] encoded.
 /// If the [callback] is null, event data will not be captured.
+/// [enableScroll] can be used to enable or disable the scroll of view.
 class IPGView extends StatefulWidget {
   final String stage;
   final String signature;
   final String payload;
   final Function(dynamic)? callback;
+  final bool enableScroll;
 
   IPGView({
     required this.stage,
     required this.signature,
     required this.payload,
     this.callback,
+    this.enableScroll = true,
   });
 
   @override
@@ -38,10 +44,19 @@ class _IPGView extends State<IPGView> {
   String? token;
   late String ch;
 
+  final Set<Factory<OneSequenceGestureRecognizer>> gestureRecognizers =
+      [Factory(() => EagerGestureRecognizer())].toSet();
+
+  UniqueKey _key = UniqueKey();
+
   @override
   void initState() {
     this.getSession();
     super.initState();
+
+    if (Platform.isAndroid) {
+      WebView.platform = SurfaceAndroidWebView();
+    }
   }
 
   getSession() async {
@@ -117,8 +132,8 @@ class _IPGView extends State<IPGView> {
 
   @override
   void dispose() {
-      this.pusher?.unsubscribe(this.ch);
-      this.pusher?.disconnect();
+    this.pusher?.unsubscribe(this.ch);
+    this.pusher?.disconnect();
 
     super.dispose();
   }
@@ -129,6 +144,9 @@ class _IPGView extends State<IPGView> {
       children: [
         this.url != null
             ? WebView(
+                key: _key,
+                gestureRecognizers:
+                    widget.enableScroll ? gestureRecognizers : null,
                 javascriptMode: JavascriptMode.unrestricted,
                 initialUrl: this.url,
                 onPageFinished: (finish) {
