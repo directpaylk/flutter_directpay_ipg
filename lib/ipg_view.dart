@@ -44,22 +44,40 @@ class _IPGView extends State<IPGView> {
   String? token;
   late String ch;
 
-  final Set<Factory<OneSequenceGestureRecognizer>> gestureRecognizers =
-      [Factory(() => EagerGestureRecognizer())].toSet();
+  final Set<Factory<OneSequenceGestureRecognizer>> gestureRecognizers = {
+    Factory(() => EagerGestureRecognizer())
+  };
 
   UniqueKey _key = UniqueKey();
 
+  late WebViewController controller;
+
   @override
   void initState() {
-    this.getSession();
+    getSessionAndSetupWebView();
     super.initState();
-
-    if (Platform.isAndroid) {
-      WebView.platform = SurfaceAndroidWebView();
-    }
   }
 
-  getSession() async {
+  Future<void> getSessionAndSetupWebView() async {
+    final url = await getSession();
+
+    controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0x00000000))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onProgress: (int progress) {
+            // Update loading bar.
+          },
+          onPageStarted: (String url) {},
+          onPageFinished: (String url) => setState(() => isLoading = false),
+          onWebResourceError: (WebResourceError error) {},
+        ),
+      )
+      ..loadRequest(Uri.parse(url!));
+  }
+
+  Future<String?> getSession() async {
     setState(() {
       url = null;
       token = null;
@@ -95,6 +113,8 @@ class _IPGView extends State<IPGView> {
     } else {
       this.callback();
     }
+
+    return this.url;
   }
 
   initPusher(ak) async {
@@ -140,28 +160,32 @@ class _IPGView extends State<IPGView> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        this.url != null
-            ? WebView(
-                key: _key,
-                gestureRecognizers:
-                    widget.enableScroll ? gestureRecognizers : null,
-                javascriptMode: JavascriptMode.unrestricted,
-                initialUrl: this.url,
-                onPageFinished: (finish) {
-                  setState(() {
-                    isLoading = false;
-                  });
-                },
-              )
-            : Container(),
-        isLoading
-            ? Center(
-                child: CircularProgressIndicator.adaptive(),
-              )
-            : Stack(),
-      ],
-    );
+    if(isLoading) {
+      return Center(
+        child: CircularProgressIndicator.adaptive(),
+      );
+    } else if(url != null) {
+      return WebViewWidget(
+        key: _key,
+        controller: controller,
+        gestureRecognizers: gestureRecognizers,
+      );
+    }
+    return const SizedBox.shrink();
+    // return Stack(
+    //   children: [
+    //     this.url != null
+    //         ? WebViewWidget(
+    //       // key: _key,
+    //       controller: controller,
+    //     )
+    //         : Container(),
+    //     isLoading
+    //         ? Center(
+    //             child: CircularProgressIndicator.adaptive(),
+    //           )
+    //         : Stack(),
+    //   ],
+    // );
   }
 }
