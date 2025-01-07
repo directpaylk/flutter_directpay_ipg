@@ -1,6 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -44,87 +42,87 @@ class _IPGView extends State<IPGView> {
   String? token;
   late String ch;
 
+  late final WebViewController _webViewController;
   final Set<Factory<OneSequenceGestureRecognizer>> gestureRecognizers =
       [Factory(() => EagerGestureRecognizer())].toSet();
 
-  UniqueKey _key = UniqueKey();
-
   @override
   void initState() {
-    this.getSession();
     super.initState();
-
-    if (Platform.isAndroid) {
-      WebView.platform = SurfaceAndroidWebView();
-    }
+    getSession();
+    _webViewController = WebViewController();
   }
 
-  getSession() async {
+  Future<void> getSession() async {
     setState(() {
       url = null;
       token = null;
     });
 
-    final response = await http.post(
-      sessionUrl(),
-      headers: <String, String>{
-        'Accept': 'application/json',
-        'Content-Type': 'application/json; charset=UTF-8',
-        'x-plugin-source': 'FLUTTER',
-        'x-plugin-version': '0.0.1',
-        'Authorization': 'hmac ' + widget.signature
-      },
-      body: widget.payload,
-    );
-    if (response.statusCode == 200) {
-      final jsonObject = jsonDecode(response.body);
-      final status = jsonObject["status"];
-      if (status == 200) {
-        setState(() {
-          this.url = jsonObject["data"]["link"];
-          this.token = jsonObject["data"]["token"];
-        });
+    try {
+      final response = await http.post(
+        sessionUrl(),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json; charset=UTF-8',
+          'x-plugin-source': 'FLUTTER',
+          'x-plugin-version': '0.0.1',
+          'Authorization': 'hmac ${widget.signature}',
+        },
+        body: widget.payload,
+      );
 
-        final ak = jsonObject["data"]["ak"];
-        this.ch = jsonObject["data"]["ch"];
+      if (response.statusCode == 200) {
+        final jsonObject = jsonDecode(response.body);
+        if (jsonObject["status"] == 200) {
+          setState(() {
+            url = jsonObject["data"]["link"];
+            token = jsonObject["data"]["token"];
+          });
 
-        this.initPusher(ak);
+          final ak = jsonObject["data"]["ak"];
+          ch = jsonObject["data"]["ch"];
+
+          await initPusher(ak);
+        } else {
+          callback(data: jsonObject);
+        }
       } else {
-        this.callback(data: jsonObject);
+        callback();
       }
-    } else {
-      this.callback();
+    } catch (e) {
+      callback();
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
-  initPusher(ak) async {
-    this.pusher = Pusher(key: ak, cluster: 'ap2');
-    await this.pusher!.connect();
-    final channel = pusher!.subscribe(this.ch);
-    channel.bind('SDK_' + this.token!, (event) {
+  Future<void> initPusher(String ak) async {
+    pusher = Pusher(key: ak, cluster: 'ap2');
+    await pusher!.connect();
+    final channel = pusher!.subscribe(ch);
+    channel.bind('SDK_$token', (event) {
       if (event['response'] != null) {
-        this.callback(data: event['response']);
+        callback(data: event['response']);
       }
     });
   }
 
-  callback({data}) {
-    if (data == null) {
-      data = {
-        'status': 400,
-        'data': {
-          'code': 'SERVER_ERROR',
-          'title': 'Failed proceed payment',
-          'message': 'Failed proceed payment',
-        },
-      };
-    }
-    if (widget.callback != null) {
-      widget.callback!(data);
-    }
+  void callback({dynamic data}) {
+    data ??= {
+      'status': 400,
+      'data': {
+        'code': 'SERVER_ERROR',
+        'title': 'Failed to proceed payment',
+        'message': 'Failed to proceed payment',
+      },
+    };
+    widget.callback?.call(data);
   }
 
-  sessionUrl() {
+  Uri sessionUrl() {
     return Uri.parse(widget.stage == IPGStage.PROD
         ? 'https://gateway.directpay.lk/api/v3/create-session'
         : 'https://test-gateway.directpay.lk/api/v3/create-session');
@@ -132,9 +130,8 @@ class _IPGView extends State<IPGView> {
 
   @override
   void dispose() {
-    this.pusher?.unsubscribe(this.ch);
-    this.pusher?.disconnect();
-
+    pusher?.unsubscribe(ch);
+    pusher?.disconnect();
     super.dispose();
   }
 
@@ -142,25 +139,20 @@ class _IPGView extends State<IPGView> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        this.url != null
-            ? WebView(
-                key: _key,
-                gestureRecognizers:
-                    widget.enableScroll ? gestureRecognizers : null,
-                javascriptMode: JavascriptMode.unrestricted,
-                initialUrl: this.url,
-                onPageFinished: (finish) {
-                  setState(() {
-                    isLoading = false;
-                  });
-                },
-              )
-            : Container(),
-        isLoading
-            ? Center(
-                child: CircularProgressIndicator.adaptive(),
-              )
-            : Stack(),
+        if (url != null)
+          WebViewWidget(
+            controller: _webViewController
+              ..setJavaScriptMode(JavaScriptMode.unrestricted)
+              ..setBackgroundColor(Colors.transparent)
+              ..loadRequest(Uri.parse(url!)),
+            gestureRecognizers: widget.enableScroll
+                ? gestureRecognizers
+                : <Factory<OneSequenceGestureRecognizer>>{}.toSet(),
+          ),
+        if (isLoading)
+          Center(
+            child: CircularProgressIndicator.adaptive(),
+          ),
       ],
     );
   }
