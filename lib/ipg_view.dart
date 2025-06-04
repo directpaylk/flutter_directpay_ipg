@@ -1,11 +1,9 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_directpay_ipg/ipg_stage.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:http/http.dart' as http;
 import 'package:pusher_channels/pusher_channels.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
 /// A widget that draws IPG view within itself.
 ///
@@ -22,6 +20,9 @@ class IPGView extends StatefulWidget {
   final String payload;
   final Function(dynamic)? callback;
   final bool enableScroll;
+  final Widget? loadingWidget;
+  final bool showLoading;
+  final Function(bool isLoading)? onLoading;
 
   IPGView({
     required this.stage,
@@ -29,6 +30,9 @@ class IPGView extends StatefulWidget {
     required this.payload,
     this.callback,
     this.enableScroll = true,
+    this.showLoading = true,
+    this.loadingWidget,
+    this.onLoading,
   });
 
   @override
@@ -37,20 +41,21 @@ class IPGView extends StatefulWidget {
 
 class _IPGView extends State<IPGView> {
   Pusher? pusher;
-  bool isLoading = true;
+  bool isLoading = false;
   String? url;
   String? token;
   late String ch;
 
-  late final WebViewController _webViewController;
-  final Set<Factory<OneSequenceGestureRecognizer>> gestureRecognizers =
-      [Factory(() => EagerGestureRecognizer())].toSet();
-
   @override
   void initState() {
-    super.initState();
+    isLoading = true;
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      if (widget.onLoading != null) {
+        widget.onLoading?.call(true);
+      }
+    });
     getSession();
-    _webViewController = WebViewController();
+    super.initState();
   }
 
   Future<void> getSession() async {
@@ -80,6 +85,8 @@ class _IPGView extends State<IPGView> {
             token = jsonObject["data"]["token"];
           });
 
+          initWebView();
+
           final ak = jsonObject["data"]["ak"];
           ch = jsonObject["data"]["ch"];
 
@@ -93,9 +100,12 @@ class _IPGView extends State<IPGView> {
     } catch (e) {
       callback();
     } finally {
-      setState(() {
-        isLoading = false;
-      });
+      // if (widget.onLoading != null) {
+      //   widget.onLoading?.call(false);
+      // }
+      // setState(() {
+      //   isLoading = false;
+      // });
     }
   }
 
@@ -128,6 +138,8 @@ class _IPGView extends State<IPGView> {
         : 'https://test-gateway.directpay.lk/api/v3/create-session');
   }
 
+  void initWebView() {}
+
   @override
   void dispose() {
     pusher?.unsubscribe(ch);
@@ -139,20 +151,39 @@ class _IPGView extends State<IPGView> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        if (url != null)
-          WebViewWidget(
-            controller: _webViewController
-              ..setJavaScriptMode(JavaScriptMode.unrestricted)
-              ..setBackgroundColor(Colors.transparent)
-              ..loadRequest(Uri.parse(url!)),
-            gestureRecognizers: widget.enableScroll
-                ? gestureRecognizers
-                : <Factory<OneSequenceGestureRecognizer>>{}.toSet(),
-          ),
-        if (isLoading)
-          Center(
-            child: CircularProgressIndicator.adaptive(),
-          ),
+        if (null != url) ...[
+          InAppWebView(
+            initialUrlRequest: URLRequest(url: WebUri(url ?? "")),
+            initialSettings: InAppWebViewSettings(
+              javaScriptEnabled: true,
+              transparentBackground: true,
+              mediaPlaybackRequiresUserGesture: true,
+              iframeAllowFullscreen: true,
+            ),
+            onLoadStop: (controller, url) {
+              if (widget.onLoading != null) {
+                widget.onLoading?.call(false);
+              }
+
+              setState(() {
+                isLoading = false;
+              });
+            },
+            onReceivedError: (controller, request, error) {
+              if (widget.onLoading != null) {
+                widget.onLoading?.call(false);
+              }
+              setState(() {
+                isLoading = false;
+              });
+            },
+          )
+        ],
+        if (widget.showLoading && isLoading) ...[
+          Positioned.fill(
+            child: widget.loadingWidget ?? CircularProgressIndicator.adaptive(),
+          )
+        ]
       ],
     );
   }
