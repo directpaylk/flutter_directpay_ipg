@@ -28,6 +28,7 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
+    namespace "lk.directpay.ipg"
     compileSdkVersion 35
 
     sourceSets {
