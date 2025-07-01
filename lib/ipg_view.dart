@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_directpay_ipg/ipg_stage.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -154,6 +156,13 @@ class _IPGView extends State<IPGView> {
         if (null != url) ...[
           InAppWebView(
             initialUrlRequest: URLRequest(url: WebUri(url ?? "")),
+            gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+              Factory<OneSequenceGestureRecognizer>(
+                  () => EagerGestureRecognizer()),
+            },
+            shouldOverrideUrlLoading: (controller, navigationAction) async {
+              return NavigationActionPolicy.ALLOW;
+            },
             initialSettings: InAppWebViewSettings(
               javaScriptEnabled: true,
               transparentBackground: true,
