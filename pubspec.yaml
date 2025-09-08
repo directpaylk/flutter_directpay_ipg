@@ -11,9 +11,10 @@ dependencies:
   flutter:
     sdk: flutter
   webview_flutter: ^3.0.4
-  http: ^0.13.4
+  # http: ^0.13.4
   crypto: ^3.0.2
   pusher_channels: ^0.2.0
+  http: ^1.2.2
 
 dev_dependencies:
   flutter_test:
