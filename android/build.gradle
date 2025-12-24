@@ -25,7 +25,7 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
-    namespace "lk.directpay. flutter_directpay_ipg"
+    namespace "lk.directpay.flutter_directpay_ipg"
     compileSdkVersion 30
 
     sourceSets {
